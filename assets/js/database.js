@@ -1,21 +1,21 @@
 const defaultConfig = {
   site: {
-    pageTitle: "Medical Specialty Camp Literature Database",
-    pageSubtitle: "Discover research and insights from medical specialty camps.",
-    heroHeading: "Medical Specialty Camp Literature Database",
-    submitButtonText: "Submit an Article",
-    submitButtonLink: "https://forms.gle/42GckNJQ4EVMdHDr7"
+    pageTitle: "...",
+    pageSubtitle: "...",
+    heroHeading: "...",
+    submitButtonText: "...",
+    submitButtonLink: "..."
   },
   filters: {
-    filter1: { label: "Focus" },
-    filter2: { label: "Medical Population" },
-    filter3: { label: "Findings" },
-    decadePublished: { label: "Decade Published" }
+    filter1: { label: "..." },
+    filter2: { label: "..." },
+    filter3: { label: "..." },
+    decadePublished: { label: "..." }
   },
   infoFields: {
-    info1: { label: "Context" },
-    info2: { label: "Method" },
-    info3: { label: "Participants" }
+    info1: { label: "..." },
+    info2: { label: "..." },
+    info3: { label: "..." }
   },
   branding: {
     favicon: "assets/uploads/signpost-2.svg"
@@ -35,6 +35,7 @@ const COLOR_VARIABLE_MAP = {
 };
 
 let appConfig = cloneObject(defaultConfig);
+let configOverrides = {};
 let database = [];
 let activeFilters = {};
 let filterVisibility = {};
@@ -65,9 +66,13 @@ document.addEventListener("DOMContentLoaded", async () => {
   await loadConfig();
 
   const { records, filters } = await loadDatabase();
+  const configuredFilterKeys = getConfiguredFilterKeys(configOverrides);
+  const hasExplicitFilterConfig = isObject(configOverrides?.filters);
 
-  FILTER_KEYS = mergeFilterKeys(Object.keys(appConfig?.filters || {}), filters);
-  if (!FILTER_KEYS.includes(DECADE_FILTER_KEY)) {
+  FILTER_KEYS = hasExplicitFilterConfig
+    ? configuredFilterKeys
+    : mergeFilterKeys(Object.keys(appConfig?.filters || {}), filters);
+  if (!hasExplicitFilterConfig && !FILTER_KEYS.includes(DECADE_FILTER_KEY)) {
     FILTER_KEYS.push(DECADE_FILTER_KEY);
   }
   filterLabels = buildFilterLabels(appConfig, FILTER_KEYS);
@@ -295,6 +300,26 @@ function mergeFilterKeys(configKeys = [], csvKeys = []) {
   }
 
   return merged;
+}
+
+function getConfiguredFilterKeys(config) {
+  if (!isObject(config?.filters)) {
+    return [];
+  }
+
+  return sortFilterKeys(
+    Object.keys(config.filters).filter((key) => {
+      if (key === DECADE_FILTER_KEY) {
+        return config.filters[key]?.enabled !== false && config.filters[key]?.visible !== false;
+      }
+
+      if (!isFilterKey(key)) {
+        return false;
+      }
+
+      return config.filters[key]?.enabled !== false && config.filters[key]?.visible !== false;
+    })
+  );
 }
 
 function ensureRecordsIncludeFilters(records, filterKeys) {
@@ -1177,15 +1202,17 @@ function setupFilterToggle() {
 
 async function loadConfig() {
   let mergedConfig = cloneObject(defaultConfig);
+  let userConfig = {};
   try {
     const response = await fetch("assets/config.json", { cache: "no-store" });
     if (!response.ok) throw new Error("Config not found");
-    const userConfig = await response.json();
+    userConfig = await response.json();
     mergedConfig = mergeDeep(defaultConfig, userConfig);
   } catch (error) {
     console.warn("Using default configuration due to error loading config:", error);
   }
   appConfig = mergedConfig;
+  configOverrides = isObject(userConfig) ? userConfig : {};
 }
 
 function buildFilterLabels(config, keys) {
